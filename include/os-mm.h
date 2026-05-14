@@ -16,6 +16,7 @@
 #define MM_PAGING
 #define PAGING_MAX_MMSWP 4 /* max number of supported swapped space */
 #define PAGING_MAX_SYMTBL_SZ 30
+#define MAX_CACHE_POOLS 32 
 
 /* 
  * @bksysnet: in long address mode of 64bit or original 32bit
@@ -98,6 +99,7 @@ struct kcache_pool_struct {
 /* 
  * Memory management struct
  */
+
 struct mm_struct {
 #ifdef MM64
    addr_t *pgd;
@@ -118,7 +120,7 @@ struct mm_struct {
    struct pgn_t *fifo_pgn;
 
    /* kmem cache pool */
-   struct kcache_pool_struct *kcpooltbl;
+   struct kcache_pool_struct *kcpooltbl[MAX_CACHE_POOLS];
 
 };
 
