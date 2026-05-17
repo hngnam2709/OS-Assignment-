@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
+extern int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct *rg_elmt);
 /*get_vma_by_num - get vm area by numID
  *@mm: memory region
  *@vmaid: ID vm area to alloc memory region
@@ -156,7 +157,33 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
 //  if (vm_map_ram(caller, area->rg_start, area->rg_end, 
 //                   old_end, incnumpage , newrg) < 0)
 //    return -1; /* Map the memory to MEMRAM */
+  struct vm_rg_struct * newrg = malloc(sizeof(struct vm_rg_struct));
 
+  int incnumpage = (inc_sz + PAGING_PAGESZ - 1) / PAGING_PAGESZ;
+  addr_t inc_amt = incnumpage * PAGING_PAGESZ;
+
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
+  if (cur_vma == NULL) {
+      free(newrg);
+      return -1;
+  }
+
+  addr_t old_sbrk = cur_vma->sbrk;
+  addr_t new_sbrk = old_sbrk + inc_amt;
+
+  if (validate_overlap_vm_area(caller, vmaid, cur_vma->vm_start, new_sbrk) < 0) {
+      free(newrg);
+      return -1;
+  }
+
+  cur_vma->sbrk = new_sbrk;
+
+  newrg->vmaid = vmaid;
+  newrg->rg_start = old_sbrk;
+  newrg->rg_end = new_sbrk;
+  newrg->rg_next = NULL;
+
+  enlist_vm_freerg_list(caller->krnl->mm, newrg);
   return 0;
 }
 
