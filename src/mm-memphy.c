@@ -27,8 +27,9 @@
 int MEMPHY_mv_csr(struct memphy_struct *mp, addr_t offset)
 {
    int numstep = 0;
-
-   mp->cursor = 0;
+   if (mp == NULL)
+      return -1;
+      
    while (numstep < offset && numstep < mp->maxsz)
    {
       /* Traverse sequentially */
@@ -50,7 +51,7 @@ int MEMPHY_seq_read(struct memphy_struct *mp, addr_t addr, BYTE *value)
    if (mp == NULL)
       return -1;
 
-   if (!mp->rdmflg)
+   if (mp->rdmflg)
       return -1; /* Not compatible mode for sequential read */
 
    MEMPHY_mv_csr(mp, addr);
@@ -90,7 +91,7 @@ int MEMPHY_seq_write(struct memphy_struct *mp, addr_t addr, BYTE value)
    if (mp == NULL)
       return -1;
 
-   if (!mp->rdmflg)
+   if (mp->rdmflg)
       return -1; /* Not compatible mode for sequential read */
 
    MEMPHY_mv_csr(mp, addr);
@@ -173,6 +174,20 @@ int MEMPHY_dump(struct memphy_struct *mp)
   /*TODO dump memphy contnt mp->storage
    *     for tracing the memory content
    */
+   int i;
+   if (mp == NULL)
+      return -1;
+
+   printf("===== MEMPHY DUMP =====\n");
+
+   for (i = 0; i < mp->maxsz; i++)
+   {
+      /* Print address and value */
+      printf("[%04d] = %02x\n", i, mp->storage[i]);
+   }
+
+   printf("=======================\n");
+
    return 0;
 }
 
