@@ -468,7 +468,7 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
     vma0->vm_next = NULL;
     vma0->vm_mm = mm; 
     mm->mmap = vma0;
-    mm->kcpooltbl = NULL;
+    for (int i = 0; i < MAX_CACHE_POOLS; i++) { mm->kcpooltbl[i] = NULL; }
     mm->fifo_pgn = NULL;
 
     return 0;
