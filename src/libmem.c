@@ -318,24 +318,26 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 
 int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 {
+#ifdef MM64
+  int pgn = addr >> PAGING64_ADDR_PT_SHIFT;
+#else
   int pgn = PAGING_PGN(addr);
-//int off = PAGING_OFFST(addr);
+#endif
   int fpn;
 
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
     return -1; /* invalid page access */
 
-//int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
-
-  /* TODO 
-   *  MEMPHY_read(caller->krnl->mram, phyaddr, data);
-   *  MEMPHY READ 
-   *  SYSCALL 17 sys_memmap with SYSMEM_IO_READ
-   */
+#ifdef MM64
+  // Thay thế PAGING64_OFFST bằng phép toán bit an toàn
+  int off = addr & (PAGING64_PAGESZ - 1); 
+  addr_t phyaddr = (fpn << PAGING64_ADDR_PT_SHIFT) + off;
+#else
   int off = PAGING_OFFST(addr);
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
-  MEMPHY_read(caller->krnl->mram, phyaddr, data);
+#endif
 
+  MEMPHY_read(caller->krnl->mram, phyaddr, data);
   return 0;
 }
 
@@ -347,24 +349,27 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
  */
 int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
 {
+#ifdef MM64
+  int pgn = addr >> PAGING64_ADDR_PT_SHIFT;
+#else
   int pgn = PAGING_PGN(addr);
-//int off = PAGING_OFFST(addr);
+#endif
   int fpn;
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
     return -1; /* invalid page access */
 
-
-  /* TODO 
-   *  MEMPHY_write(caller->krnl->mram, phyaddr, value);
-   *  MEMPHY WRITE with SYSMEM_IO_WRITE 
-   * SYSCALL 17 sys_memmap
-   */
+#ifdef MM64
+  // Thay thế PAGING64_OFFST bằng phép toán bit an toàn
+  int off = addr & (PAGING64_PAGESZ - 1); 
+  addr_t phyaddr = (fpn << PAGING64_ADDR_PT_SHIFT) + off;
+#else
   int off = PAGING_OFFST(addr);
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
-  MEMPHY_write(caller->krnl->mram, phyaddr, value);
+#endif
 
+  MEMPHY_write(caller->krnl->mram, phyaddr, value);
   return 0;
 }
 

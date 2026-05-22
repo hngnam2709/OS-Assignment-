@@ -468,7 +468,10 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
     vma0->vm_next = NULL;
     vma0->vm_mm = mm; 
     mm->mmap = vma0;
-    mm->kcpooltbl = NULL;
+    int i;
+    for (i = 0; i < MAX_CACHE_POOLS; i++) {
+        mm->kcpooltbl[i] = NULL;
+    }
     mm->fifo_pgn = NULL;
 
     return 0;
@@ -573,6 +576,15 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
     if (krnl == NULL || krnl->mm == NULL || krnl->mm->pgd == NULL) {
         printf("print_pgtbl: PGD is NULL. No memory mapped.\n");
         return -1;
+    }
+
+    /* VÁ LỖI IN VÔ HẠN: Nếu end là -1, ta chỉ in tới giới hạn bộ nhớ ảo thực tế (sbrk) */
+    if (end == (addr_t)-1) {
+        if (krnl->mm->mmap != NULL && krnl->mm->mmap->sbrk > 0) {
+            end = krnl->mm->mmap->sbrk - 1;
+        } else {
+            end = start + 0x10000; // In đại diện một ít nếu chưa có sbrk
+        }
     }
 
     printf("========== PAGE TABLE DUMP ==========\n");

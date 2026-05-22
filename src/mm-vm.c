@@ -184,6 +184,25 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
   newrg->rg_next = NULL;
 
   enlist_vm_freerg_list(caller->krnl->mm, newrg);
+
+  /* =================================================================
+   * VÁ LỖI TV2: Bắt buộc phải gọi hàm Phân trang sau khi tăng sbrk 
+   * ================================================================= */
+#ifdef MM64
+  // 1. Gọi hàm Demand Allocation của TV3 để tạo cây PGD -> PT
+  vmap_pgd_memset(caller, old_sbrk, incnumpage);
+  
+  // 2. Gọi hàm cấp phát Frame vật lý của TV3 để gắn vào các trang vừa tạo
+  struct framephy_struct *frm_lst = NULL;
+  alloc_pages_range(caller, incnumpage, &frm_lst);
+
+  // 3. (MỚI THÊM) Lắp ráp Frame vật lý vào cây phân trang ngay lập tức
+  vmap_page_range(caller, old_sbrk, incnumpage, frm_lst, newrg);
+#else
+  // Nếu là hệ thống 32-bit cũ thì gọi hàm vm_map_ram (nếu TV2 có viết)
+  // vm_map_ram(caller, cur_vma->vm_start, cur_vma->vm_end, old_sbrk, incnumpage, newrg);
+#endif
+  /* ================================================================= */
   return 0;
 }
 
