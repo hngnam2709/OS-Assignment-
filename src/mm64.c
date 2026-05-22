@@ -452,7 +452,7 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
     struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
 
     /* Khởi tạo các rễ phân trang về NULL */
-    mm->pgd = NULL;
+    mm->pgd = malloc(PAGING_MAX_PGN * sizeof(uint32_t));
     mm->p4d = NULL;
     mm->pud = NULL;
     mm->pmd = NULL;
@@ -460,7 +460,7 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 
     vma0->vm_id = 0;
     vma0->vm_start = 0;
-    vma0->vm_end = 1024 * 1024;
+    vma0->vm_end = 1024 * 1024; 
     vma0->sbrk = vma0->vm_start;
     struct vm_rg_struct *first_rg = init_vm_rg(vma0->vm_start, vma0->vm_end);
     enlist_vm_rg_node(&vma0->vm_freerg_list, first_rg);
