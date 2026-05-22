@@ -1,0 +1,13 @@
+1 12
+calc
+alloc 100 0
+copy_from_user 0 0 0 10
+calc
+syscall 101 0 0 0
+calc
+calc
+calc
+calc
+calc
+calc
+calc

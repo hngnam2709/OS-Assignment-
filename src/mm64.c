@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <stdlib.h>
+
 
 #if defined(MM64)
 
@@ -460,7 +460,7 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 
     vma0->vm_id = 0;
     vma0->vm_start = 0;
-    vma0->vm_end = vma0->vm_start;
+    vma0->vm_end = 1024 * 1024;
     vma0->sbrk = vma0->vm_start;
     struct vm_rg_struct *first_rg = init_vm_rg(vma0->vm_start, vma0->vm_end);
     enlist_vm_rg_node(&vma0->vm_freerg_list, first_rg);
