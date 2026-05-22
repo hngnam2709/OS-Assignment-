@@ -1,0 +1,11 @@
+1 10
+alloc 4096 0
+calc
+write 65 0 0
+write 66 0 1
+write 67 0 2
+write 68 0 3
+calc
+read 0 0 0
+calc
+free 0

@@ -1,0 +1,7 @@
+1 6
+calc
+alloc 4096 0
+calc
+alloc 8192 1
+calc
+syscall 440 0 0 0
