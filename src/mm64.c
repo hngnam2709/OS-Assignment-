@@ -144,33 +144,49 @@ int pte_set_swap(struct pcb_t *caller, addr_t pgn, int swptyp, addr_t swpoff)
 int pte_set_fpn(struct pcb_t *caller, addr_t pgn, addr_t fpn)
 {
     struct krnl_t *krnl = caller->krnl;
-    addr_t pgd_idx = 0, p4d_idx = 0, pud_idx = 0, pmd_idx = 0, pt_idx = 0;
-    
-    // Tính lại địa chỉ ảo từ page number
     addr_t vaddr = pgn << PAGING64_ADDR_PT_SHIFT;
+    addr_t pgd_idx, p4d_idx, pud_idx, pmd_idx, pt_idx;
     get_pd_from_address(vaddr, &pgd_idx, &p4d_idx, &pud_idx, &pmd_idx, &pt_idx);
 
-    // Duyệt cây (Demand Allocation kiểm tra an toàn)
-    if (krnl->mm->pgd == NULL) return -1;
-    
-    addr_t* p4d_array = (addr_t*) krnl->mm->pgd[pgd_idx];
-    if (p4d_array == NULL) return -1;
-    
-    addr_t* pud_array = (addr_t*) p4d_array[p4d_idx];
-    if (pud_array == NULL) return -1;
-    
-    addr_t* pmd_array = (addr_t*) pud_array[pud_idx];
-    if (pmd_array == NULL) return -1;
-    
-    addr_t* pt_array = (addr_t*) pmd_array[pmd_idx];
-    if (pt_array == NULL) return -1;
+    // PGD
+    if (krnl->mm->pgd == NULL) {
+        krnl->mm->pgd = (addr_t*)calloc(512, sizeof(addr_t));
+        if (!krnl->mm->pgd) return -1;
+    }
+    // P4D
+    if (krnl->mm->pgd[pgd_idx] == 0) {
+        addr_t *p4d = (addr_t*)calloc(512, sizeof(addr_t));
+        if (!p4d) return -1;
+        krnl->mm->pgd[pgd_idx] = (addr_t)p4d;
+    }
+    addr_t *p4d_array = (addr_t*)krnl->mm->pgd[pgd_idx];
+    // PUD
+    if (p4d_array[p4d_idx] == 0) {
+        addr_t *pud = (addr_t*)calloc(512, sizeof(addr_t));
+        if (!pud) return -1;
+        p4d_array[p4d_idx] = (addr_t)pud;
+    }
+    addr_t *pud_array = (addr_t*)p4d_array[p4d_idx];
+    // PMD
+    if (pud_array[pud_idx] == 0) {
+        addr_t *pmd = (addr_t*)calloc(512, sizeof(addr_t));
+        if (!pmd) return -1;
+        pud_array[pud_idx] = (addr_t)pmd;
+    }
+    addr_t *pmd_array = (addr_t*)pud_array[pud_idx];
+    // PT
+    if (pmd_array[pmd_idx] == 0) {
+        addr_t *pt = (addr_t*)calloc(512, sizeof(addr_t));
+        if (!pt) return -1;
+        pmd_array[pmd_idx] = (addr_t)pt;
+    }
+    addr_t *pt_array = (addr_t*)pmd_array[pmd_idx];
 
-    // Cài đặt FPN cho PTE
-    addr_t* pte = &pt_array[pt_idx];
+    // Set PTE
+    addr_t *pte = &pt_array[pt_idx];
     SETBIT(*pte, PAGING_PTE_PRESENT_MASK);
     CLRBIT(*pte, PAGING_PTE_SWAPPED_MASK);
     SETVAL(*pte, fpn, PAGING_PTE_FPN_MASK, PAGING_PTE_FPN_LOBIT);
-
     return 0;
 }
 
@@ -183,25 +199,26 @@ int pte_set_fpn(struct pcb_t *caller, addr_t pgn, addr_t fpn)
 uint32_t pte_get_entry(struct pcb_t *caller, addr_t pgn)
 {
     struct krnl_t *krnl = caller->krnl;
-    addr_t pgd_idx = 0, p4d_idx = 0, pud_idx = 0, pmd_idx = 0, pt_idx = 0;
-    
+    addr_t pgd_idx, p4d_idx, pud_idx, pmd_idx, pt_idx;
     get_pd_from_pagenum(pgn, &pgd_idx, &p4d_idx, &pud_idx, &pmd_idx, &pt_idx);
 
     if (krnl->mm->pgd == NULL) return 0;
-    
-    addr_t* p4d_array = (addr_t*) krnl->mm->pgd[pgd_idx];
+    addr_t *p4d_array = (addr_t *)krnl->mm->pgd[pgd_idx];
     if (p4d_array == NULL) return 0;
-    
-    addr_t* pud_array = (addr_t*) p4d_array[p4d_idx];
+    if (p4d_array[p4d_idx] == 0) return 0;   // Key check
+
+    addr_t *pud_array = (addr_t *)p4d_array[p4d_idx];
     if (pud_array == NULL) return 0;
-    
-    addr_t* pmd_array = (addr_t*) pud_array[pud_idx];
+    if (pud_array[pud_idx] == 0) return 0;   // Key check
+
+    addr_t *pmd_array = (addr_t *)pud_array[pud_idx];
     if (pmd_array == NULL) return 0;
-    
-    addr_t* pt_array = (addr_t*) pmd_array[pmd_idx];
+    if (pmd_array[pmd_idx] == 0) return 0;   // Key check
+
+    addr_t *pt_array = (addr_t *)pmd_array[pmd_idx];
     if (pt_array == NULL) return 0;
 
-    return (uint32_t) pt_array[pt_idx];
+    return (uint32_t)pt_array[pt_idx];
 }
 
 /* Set PTE page table entry
@@ -212,38 +229,28 @@ uint32_t pte_get_entry(struct pcb_t *caller, addr_t pgn)
 int pte_set_entry(struct pcb_t *caller, addr_t pgn, uint32_t pte_val)
 {
 	  struct krnl_t *krnl = caller->krnl;
-	  uint32_t pte = 0;
-    
-    addr_t pgd_idx = 0;
-    addr_t p4d_idx = 0;
-    addr_t pud_idx = 0;
-    addr_t pmd_idx = 0;
-    addr_t pt_idx = 0;
-
-    /* Lấy các tọa độ (index) 5 cấp từ page number */
+    addr_t pgd_idx, p4d_idx, pud_idx, pmd_idx, pt_idx;
     get_pd_from_pagenum(pgn, &pgd_idx, &p4d_idx, &pud_idx, &pmd_idx, &pt_idx);
 
-    /* Bắt đầu duyệt cây Page Table từ PGD xuống */
-    // Nếu chưa khởi tạo PGD, chắc chắn chưa có mapping
-    if (krnl->mm->pgd == NULL) return 0;
-    
-    addr_t* p4d_array = (addr_t*) krnl->mm->pgd[pgd_idx];
-    if (p4d_array == NULL) return 0; // Giá trị 0 tương đương con trỏ NULL
-    
-    addr_t* pud_array = (addr_t*) p4d_array[p4d_idx];
-    if (pud_array == NULL) return 0;
-    
-    addr_t* pmd_array = (addr_t*) pud_array[pud_idx];
-    if (pmd_array == NULL) return 0;
-    
-    addr_t* pt_array = (addr_t*) pmd_array[pmd_idx];
-    if (pt_array == NULL) return 0;
+    if (krnl->mm->pgd == NULL) return -1;
 
-    /* Trích xuất giá trị PTE tại cấp cuối cùng (Page Table) */
-    // Ép kiểu về uint32_t theo đúng signature của hàm
-    pte = (uint32_t) pt_array[pt_idx];
+    addr_t *p4d_array = (addr_t *)krnl->mm->pgd[pgd_idx];
+    if (p4d_array == NULL) return -1;
+    if (p4d_array[p4d_idx] == 0) return -1;   // missing level
 
-    return pte;
+    addr_t *pud_array = (addr_t *)p4d_array[p4d_idx];
+    if (pud_array == NULL) return -1;
+    if (pud_array[pud_idx] == 0) return -1;
+
+    addr_t *pmd_array = (addr_t *)pud_array[pud_idx];
+    if (pmd_array == NULL) return -1;
+    if (pmd_array[pmd_idx] == 0) return -1;
+
+    addr_t *pt_array = (addr_t *)pmd_array[pmd_idx];
+    if (pt_array == NULL) return -1;
+
+    pt_array[pt_idx] = pte_val;   
+    return 0;
 }
 
 
@@ -452,7 +459,7 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
     struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
 
     /* Khởi tạo các rễ phân trang về NULL */
-    mm->pgd = malloc(PAGING_MAX_PGN * sizeof(uint32_t));
+    mm->pgd = malloc(PAGING_MAX_PGN * sizeof(addr_t));
     mm->p4d = NULL;
     mm->pud = NULL;
     mm->pmd = NULL;
@@ -460,7 +467,7 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 
     vma0->vm_id = 0;
     vma0->vm_start = 0;
-    vma0->vm_end = 1024 * 1024; 
+    vma0->vm_end = 1024 * 1024; // 1MB cho vùng nhớ ảo ban đầu
     vma0->sbrk = vma0->vm_start;
     struct vm_rg_struct *first_rg = init_vm_rg(vma0->vm_start, vma0->vm_end);
     enlist_vm_rg_node(&vma0->vm_freerg_list, first_rg);
